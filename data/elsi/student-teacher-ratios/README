@@ -1,0 +1,23 @@
+# Data originates at http://nces.ed.gov/ccd/elsi/tableGenerator.aspx and is provided by the National Center for Education Statistics
+#
+NOTES: CBSA downloads don't have a FIPS ID, but we could do a fuzzy search to resolve them. We proceed w/ States and Counties for our first pass.
+
+1. Downloading statistics data
+
+Download 2 files separately for State and County. Choose the Select a Table Row in the tableGenerator.
+
+2. For each region type, select the past X years of data such that data exists for every year for all region types (12 as of March 2016). Choose the Select Years.
+
+3. For each region type, select the FIPS code or id (in the county case) so that the USCensusID can be generated.
+
+4. + Pupil/Teacher Ratio across time
+
+5. open and delete non header lines
+
+6. the ELSI site generates anomolies in the data, such as selective use of quotes and the 'g' char around FIPS codes. These need to be manually stripped.
+
+7. run python script
+
+python pag.py
+
+8+ Proceed to upload dataset into ODN per this doc: https://docs.google.com/document/d/1WUv2fIyj3G-7L5aCPrCTzsPXBJ44_7z6pvj9ALlQWGc
