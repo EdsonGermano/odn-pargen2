@@ -10,7 +10,7 @@ def parse_elsi_student_teacher_ratios(in_dir):
             id=None
             name=None
             variable='student-teacher-ratio'
-            type=region_type
+            type=region_type.lower()
             year_value=[]
             value=[]
 
