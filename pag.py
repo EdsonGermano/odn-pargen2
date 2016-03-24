@@ -40,15 +40,17 @@ def parse_elsi_student_teacher_ratios(in_dir):
                 for yv in sorted(year_value, key=lambda tup: tup[0]):
                     writer.writerow({'id': id, 'name': name, 'type': type, 'variable': variable, 'year': yv[0], 'value':yv[1]})
 
-    print "parsing " + in_dir + "/teacher-student-ratios-states.csv"
+    print "parsing " + in_dir + "/student-teacher-ratios-states.csv"
 
-    with open('teacher-student-ratios-merged.csv', 'w') as csvfile:
+    with open('student-teacher-ratios-merged.csv', 'w') as csvfile:
         fieldnames=['id', 'name', 'type', 'variable', 'year', 'value']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
-        pgen(in_dir + "/teacher-student-ratios-counties.csv", writer, "County Number", "County", "Pupil/Teacher Ratio [Public School] ", "0500000US")
-        pgen(in_dir + "/teacher-student-ratios-states.csv", writer, "ANSI", "State", "Pupil/Teacher Ratio [State] ", "0400000US")
+        pgen(in_dir + "/student-teacher-ratios-counties.csv", writer, "County Number", "County", "Pupil/Teacher Ratio [Public School] ", "0500000US")
+        pgen(in_dir + "/student-teacher-ratios-states.csv", writer, "ANSI", "State", "Pupil/Teacher Ratio [State] ", "0400000US")
+        #pgen(in_dir + "/student-teacher-ratios-metros.csv", writer, "ANSI", "State", "Pupil/Teacher Ratio [State] ", "0400000US")
+
 
     print "done"
 
