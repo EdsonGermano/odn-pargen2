@@ -1,16 +1,40 @@
 import csv
 import argparse
+import urllib
+import json
 
 def parse_elsi_student_teacher_ratios(in_dir):
 
-    def pgen(file_name, writer, fips_prefix, region_type, type_prefix, id_prefix):
+    def resolve_acs(name, region_type="CBSA"):
+        """
+        Resolves ACS id and autosuggest name by fuzzy tokenized lookup
+        @return id,autosuggest_name
+        """
+
+        if(region_type == "CBSA"):
+            print "attempting fuzzy resolution of ACS code..."
+            print "name="+str(name)
+            metro = urllib.urlopen("https://odn.data.socrata.com/resource/7g2b-8brv.json?$select=id,autocomplete_name&$q="+name+"&$order=population%20desc&$limit=1").readline()
+            json_match_results = json.loads(metro)
+
+            print json_match_results
+            print json_match_results[0]["id"]
+            print json_match_results[0]["autocomplete_name"]
+
+            return json_match_results[0]["id"], json_match_results[0]["autocomplete_name"]
+
+    def pgen(file_name, writer, fips_prefix, region_type, type_prefix, id_prefix, fuzzy_resolve=False):
         input_file = csv.DictReader(open(file_name))
 
+        i=0
         for row in input_file:
+            i+=1
+
             id=None
             name=None
             variable='student-teacher-ratio'
             type=region_type.lower()
+            if type=="cbsa":type="msa"
             year_value=[]
             value=[]
 
@@ -20,8 +44,10 @@ def parse_elsi_student_teacher_ratios(in_dir):
                     #print row[k]
                     if(row[k]!=None):
                         try:
-                            int(row[k])
-                            id=id_prefix+row[k]
+                            if(not fuzzy_resolve):
+                                print row[k]
+                                int(row[k])
+                                id=id_prefix+row[k]
                         except:
                             print "including " + str(name) + " but FIPS code: " + str(row[k]) + " not resolvable. Add to autosuggest exclusion dataset"
 
@@ -36,9 +62,23 @@ def parse_elsi_student_teacher_ratios(in_dir):
                     year_value.append((year, value))
                 elif(k.endswith(" Name")): #weird chars in the export
                     name=row[k]
+
+            #print "id="+str(id)
+            if(fuzzy_resolve):
+                try:
+                    id,name = resolve_acs(name, region_type=region_type)
+                except:
+                    "failed to resolve name=" + name + ", skipping"
+                    continue
+
+            #print "type="+str(type)
+            #print "value="+str(value)
+
             if (id!=None):
                 for yv in sorted(year_value, key=lambda tup: tup[0]):
                     writer.writerow({'id': id, 'name': name, 'type': type, 'variable': variable, 'year': yv[0], 'value':yv[1]})
+
+            print "completed row %d\n" % i
 
     print "parsing " + in_dir + "/student-teacher-ratios-states.csv"
 
@@ -49,7 +89,7 @@ def parse_elsi_student_teacher_ratios(in_dir):
 
         pgen(in_dir + "/student-teacher-ratios-counties.csv", writer, "County Number", "County", "Pupil/Teacher Ratio [Public School] ", "0500000US")
         pgen(in_dir + "/student-teacher-ratios-states.csv", writer, "ANSI", "State", "Pupil/Teacher Ratio [State] ", "0400000US")
-        #pgen(in_dir + "/student-teacher-ratios-metros.csv", writer, "ANSI", "State", "Pupil/Teacher Ratio [State] ", "0400000US")
+        pgen(in_dir + "/student-teacher-ratios-metros.csv", writer, "ANSI", "CBSA", "Pupil/Teacher Ratio [Public School] ", "310M200US", fuzzy_resolve=True)
 
 
     print "done"
