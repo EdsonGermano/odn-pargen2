@@ -2,28 +2,48 @@ import csv
 import argparse
 import urllib
 import json
+import traceback
 
 def parse_elsi_student_teacher_ratios(in_dir):
 
-    def resolve_acs(name, region_type="CBSA"):
+    def _is_acs_type(region_type, acs_id):
+        if (region_type=='msa'):
+            if "310M200" in acs_id: return True
+        elif (region_type=='state'):
+            if "0400000" in acs_id: return True
+        elif ("region_type")=='place':
+            if "1600000" in acs_id: return True
+        elif ("region_type")=="county":
+            if "0500000" in acs_id: return True
+        elif ("region_type")=="zip_code":
+            if "8600000" in acs_id: return True
+        else:
+            return False
+
+    def resolve_acs(name, region_type="msa"):
         """
         Resolves ACS id and autosuggest name by fuzzy tokenized lookup
         @return id,autosuggest_name
         """
 
-        if(region_type == "CBSA"):
-            print "attempting fuzzy resolution of ACS code..."
-            print "name="+str(name)
+        if(region_type == "msa"):
+            print "\nattempting fuzzy resolution of ACS code for " + str(name)
             metro = urllib.urlopen("https://odn.data.socrata.com/resource/7g2b-8brv.json?$select=id,autocomplete_name&$q="+name+"&$order=population%20desc&$limit=1").readline()
             json_match_results = json.loads(metro)
+            id=json_match_results[0]["id"]
+            name=json_match_results[0]["autocomplete_name"]
+            if _is_acs_type(region_type, id):
+                print "resolved id="+str(id)+", name="+str(name)
+                return id,name
 
-            print json_match_results
-            print json_match_results[0]["id"]
-            print json_match_results[0]["autocomplete_name"]
+            msg = "Invalid id="+str(id)+" resolved for "+str(name)
+            print msg
+            raise Exception(msg)
 
-            return json_match_results[0]["id"], json_match_results[0]["autocomplete_name"]
 
     def pgen(file_name, writer, fips_prefix, region_type, type_prefix, id_prefix, fuzzy_resolve=False):
+        print "parsing " + file_name
+
         input_file = csv.DictReader(open(file_name))
 
         i=0
@@ -39,9 +59,7 @@ def parse_elsi_student_teacher_ratios(in_dir):
             value=[]
 
             for k in row.keys():
-                #print k
                 if(k.startswith(fips_prefix)): #e.g. ANSI
-                    #print row[k]
                     if(row[k]!=None):
                         try:
                             if(not fuzzy_resolve):
@@ -63,24 +81,18 @@ def parse_elsi_student_teacher_ratios(in_dir):
                 elif(k.endswith(" Name")): #weird chars in the export
                     name=row[k]
 
-            #print "id="+str(id)
             if(fuzzy_resolve):
                 try:
-                    id,name = resolve_acs(name, region_type=region_type)
+                    id,name = resolve_acs(name, region_type=type)
                 except:
-                    "failed to resolve name=" + name + ", skipping"
+                    print "failed to resolve name=" + str(name) + ", skipping"
                     continue
-
-            #print "type="+str(type)
-            #print "value="+str(value)
 
             if (id!=None):
                 for yv in sorted(year_value, key=lambda tup: tup[0]):
                     writer.writerow({'id': id, 'name': name, 'type': type, 'variable': variable, 'year': yv[0], 'value':yv[1]})
 
             print "completed row %d\n" % i
-
-    print "parsing " + in_dir + "/student-teacher-ratios-states.csv"
 
     with open('student-teacher-ratios-merged.csv', 'w') as csvfile:
         fieldnames=['id', 'name', 'type', 'variable', 'year', 'value']
@@ -90,7 +102,6 @@ def parse_elsi_student_teacher_ratios(in_dir):
         pgen(in_dir + "/student-teacher-ratios-counties.csv", writer, "County Number", "County", "Pupil/Teacher Ratio [Public School] ", "0500000US")
         pgen(in_dir + "/student-teacher-ratios-states.csv", writer, "ANSI", "State", "Pupil/Teacher Ratio [State] ", "0400000US")
         pgen(in_dir + "/student-teacher-ratios-metros.csv", writer, "ANSI", "CBSA", "Pupil/Teacher Ratio [Public School] ", "310M200US", fuzzy_resolve=True)
-
 
     print "done"
 
