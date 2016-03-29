@@ -4,8 +4,9 @@ import urllib
 import json
 import traceback
 
-def parse_elsi_student_teacher_ratios(in_dir):
+class ACSResolver(object):
 
+    @staticmethod
     def _is_acs_type(region_type, acs_id):
         if (region_type=='msa'):
             if "310M200" in acs_id: return True
@@ -20,7 +21,8 @@ def parse_elsi_student_teacher_ratios(in_dir):
         else:
             return False
 
-    def resolve_acs(name, region_type="msa"):
+    @staticmethod
+    def resolve(name, region_type="msa"):
         """
         Resolves ACS id and autosuggest name by fuzzy tokenized lookup
         @return id,autosuggest_name
@@ -32,7 +34,7 @@ def parse_elsi_student_teacher_ratios(in_dir):
             json_match_results = json.loads(metro)
             id=json_match_results[0]["id"]
             name=json_match_results[0]["autocomplete_name"]
-            if _is_acs_type(region_type, id):
+            if ACSResolver._is_acs_type(region_type, id):
                 print "resolved id="+str(id)+", name="+str(name)
                 return id,name
 
@@ -40,8 +42,9 @@ def parse_elsi_student_teacher_ratios(in_dir):
             print msg
             raise Exception(msg)
 
+def parse_elsi_student_teacher_ratios(in_dir):
 
-    def pgen(file_name, writer, fips_prefix, region_type, type_prefix, id_prefix, fuzzy_resolve=False):
+    def _pgen(file_name, writer, fips_prefix, region_type, type_prefix, id_prefix, fuzzy_resolve=False):
         print "parsing " + file_name
 
         input_file = csv.DictReader(open(file_name))
@@ -83,7 +86,7 @@ def parse_elsi_student_teacher_ratios(in_dir):
 
             if(fuzzy_resolve):
                 try:
-                    id,name = resolve_acs(name, region_type=type)
+                    id,name = ACSResolver.resolve(name, region_type=type)
                 except:
                     print "failed to resolve name=" + str(name) + ", skipping"
                     continue
@@ -99,9 +102,9 @@ def parse_elsi_student_teacher_ratios(in_dir):
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
-        pgen(in_dir + "/student-teacher-ratios-counties.csv", writer, "County Number", "County", "Pupil/Teacher Ratio [Public School] ", "0500000US")
-        pgen(in_dir + "/student-teacher-ratios-states.csv", writer, "ANSI", "State", "Pupil/Teacher Ratio [State] ", "0400000US")
-        pgen(in_dir + "/student-teacher-ratios-metros.csv", writer, "ANSI", "CBSA", "Pupil/Teacher Ratio [Public School] ", "310M200US", fuzzy_resolve=True)
+        _pgen(in_dir + "/student-teacher-ratios-counties.csv", writer, "County Number", "County", "Pupil/Teacher Ratio [Public School] ", "0500000US")
+        _pgen(in_dir + "/student-teacher-ratios-states.csv", writer, "ANSI", "State", "Pupil/Teacher Ratio [State] ", "0400000US")
+        _pgen(in_dir + "/student-teacher-ratios-metros.csv", writer, "ANSI", "CBSA", "Pupil/Teacher Ratio [Public School] ", "310M200US", fuzzy_resolve=True)
 
     print "done"
 
