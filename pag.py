@@ -42,12 +42,40 @@ class ACSResolver(object):
             print msg
             raise Exception(msg)
 
-def parse_elsi_student_teacher_ratios(in_dir):
+class ParseRule(object):
 
-    def _pgen(file_name, writer, fips_prefix, region_type, type_prefix, id_prefix, fuzzy_resolve=False):
-        print "parsing " + file_name
+    def __init__(self, file_name, fips_prefix, region_type, type_prefix, id_prefix, fuzzy_resolve=False):
+        self.file_name=file_name
+        self.fips_prefix=fips_prefix
+        self.region_type=region_type
+        self.type_prefix=type_prefix
+        self.id_prefix=id_prefix
+        self.fuzzy_resolve=fuzzy_resolve
 
-        input_file = csv.DictReader(open(file_name))
+class ELSITransformer(object):
+
+    fieldnames=['id', 'name', 'type', 'variable', 'year', 'value']
+
+    def __init__(self, subcategory, variable, data_path):
+        self.subcategory=subcategory
+        self.variable = variable
+        self.data_path = data_path
+        self.parse_rules=[]
+
+    def transform(self):
+        with open(self.subcategory+'-merged.csv', 'w') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=self.fieldnames)
+            writer.writeheader()
+            for r in self.parse_rules:
+                self._transform_region(r, writer)
+
+        print "done"
+
+    def _transform_region(self, parse_rule, writer):
+        file_path=self.data_path + "/"+parse_rule.file_name
+        print "parsing " + file_path
+
+        input_file = csv.DictReader(open(file_path))
 
         i=0
         for row in input_file:
@@ -55,25 +83,27 @@ def parse_elsi_student_teacher_ratios(in_dir):
 
             id=None
             name=None
-            variable='student-teacher-ratio'
-            type=region_type.lower()
+            type=parse_rule.region_type.lower()
             if type=="cbsa":type="msa"
             year_value=[]
             value=[]
 
             for k in row.keys():
-                if(k.startswith(fips_prefix)): #e.g. ANSI
+                if(k.startswith(parse_rule.fips_prefix)): #e.g. ANSI
                     if(row[k]!=None):
                         try:
-                            if(not fuzzy_resolve):
-                                print row[k]
-                                int(row[k])
-                                id=id_prefix+row[k]
+                            if(not parse_rule.fuzzy_resolve):
+                                id = row[k]
+                                # strip ="*" format if present
+                                if id.startswith('=') and id.endswith('"'): id = id[2:-1]
+
+                                int(id)
+                                id=parse_rule.id_prefix+id
                         except:
                             print "including " + str(name) + " but FIPS code: " + str(row[k]) + " not resolvable. Add to autosuggest exclusion dataset"
 
-                elif(k.startswith("Pupil")):
-                    year = str(int((k.split(type_prefix)[1][:4]))+1)
+                elif(k.startswith(parse_rule.type_prefix)):
+                    year = str(int((k.split(parse_rule.type_prefix)[1].strip()[:4]))+1)
                     try: #check for legit float values
                         float(row[k])
                         value=row[k]
@@ -84,7 +114,7 @@ def parse_elsi_student_teacher_ratios(in_dir):
                 elif(k.endswith(" Name")): #weird chars in the export
                     name=row[k]
 
-            if(fuzzy_resolve):
+            if(parse_rule.fuzzy_resolve):
                 try:
                     id,name = ACSResolver.resolve(name, region_type=type)
                 except:
@@ -93,20 +123,21 @@ def parse_elsi_student_teacher_ratios(in_dir):
 
             if (id!=None):
                 for yv in sorted(year_value, key=lambda tup: tup[0]):
-                    writer.writerow({'id': id, 'name': name, 'type': type, 'variable': variable, 'year': yv[0], 'value':yv[1]})
+                    writer.writerow({'id': id, 'name': name, 'type': type, 'variable': self.variable, 'year': yv[0], 'value':yv[1]})
 
             print "completed row %d\n" % i
 
-    with open('student-teacher-ratios-merged.csv', 'w') as csvfile:
-        fieldnames=['id', 'name', 'type', 'variable', 'year', 'value']
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
+def parse_elsi_student_teacher_ratios(in_dir):
+    transformer = ELSITransformer("classroom_statistics", "student-teacher-ratio", in_dir)
+    transformer.parse_rules.append(ParseRule("student-teacher-ratios-counties.csv", "County Number", "County", "Pupil/Teacher Ratio [Public School] ", "0500000US"))
+    transformer.parse_rules.append(ParseRule("student-teacher-ratios-states.csv", "ANSI", "State", "Pupil/Teacher Ratio [State] ", "0400000US"))
+    transformer.parse_rules.append(ParseRule("student-teacher-ratios-metros.csv", "ANSI", "CBSA", "Pupil/Teacher Ratio [Public School] ", "310M200US", fuzzy_resolve=True))
+    transformer.transform()
 
-        _pgen(in_dir + "/student-teacher-ratios-counties.csv", writer, "County Number", "County", "Pupil/Teacher Ratio [Public School] ", "0500000US")
-        _pgen(in_dir + "/student-teacher-ratios-states.csv", writer, "ANSI", "State", "Pupil/Teacher Ratio [State] ", "0400000US")
-        _pgen(in_dir + "/student-teacher-ratios-metros.csv", writer, "ANSI", "CBSA", "Pupil/Teacher Ratio [Public School] ", "310M200US", fuzzy_resolve=True)
-
-    print "done"
+def parse_elsi_expenditures(in_dir):
+    transformer = ELSITransformer("expenditures", "administration-salaries", in_dir)
+    transformer.parse_rules.append(ParseRule("administration-salaries-expenditures-states.csv", "ANSI", "State", "School Administration - Salaries (E215) [State Finance]", "0400000US"))
+    transformer.transform()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-a', help="shows available raw datasets for transformation", action='store_true')
@@ -123,6 +154,8 @@ if(args.a):
 elif(args.p):
     if(args.p=="elsi/student-teacher-ratios"):
         parse_elsi_student_teacher_ratios("data/"+args.p)
+    elif(args.p=="elsi/expenditures"):
+        parse_elsi_expenditures("data/"+args.p)
 
         """
         Add other data sources here. Stick to the source/variable naming convention.
