@@ -138,12 +138,7 @@ class ELSITransformer(object):
                 for yv in sorted(year_value, key=lambda tup: tup[0]):
                     writer.writerow({'id': id, 'name': name, 'type': type, 'variable': self.variable, 'year': yv[0], 'value':yv[1]})
                     if(parse_rule.normalize_per_student):
-                        print yv[0]
-                        print yv[1]
-                        print enrollments.id_year_value_map[id][yv[0]]
                         normalized_value=int(float(yv[1])/enrollments.id_year_value_map[id][yv[0]])
-                        print str(normalized_value)
-                        print "\n"
                         writer.writerow({'id': id, 'name': name, 'type': type, 'variable': self.variable+"-per-student", 'year': yv[0], 'value':normalized_value})
 
 
@@ -158,9 +153,7 @@ def parse_elsi_student_teacher_ratios(in_dir):
 
 def parse_elsi_expenditures(in_dir):
     transformer = ELSITransformer("expenditures", "administration-salaries", in_dir)
-    print "shit"
     transformer.parse_rules.append(ParseRule("administration-salaries-expenditures-states.csv", "ANSI", "State", "School Administration - Salaries (E215) [State Finance]", "0400000US", normalize_per_student=True))
-    print "shit"
     transformer.transform()
 
 def parse_elsi_enrollments(in_dir):
