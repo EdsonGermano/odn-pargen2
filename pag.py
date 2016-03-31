@@ -42,15 +42,27 @@ class ACSResolver(object):
             print msg
             raise Exception(msg)
 
+class Enrollments(object):
+
+    def __init__(self):
+        self.id_year_value_map = dict()
+
+        for row in csv.DictReader(open('enrollments-merged.csv')):
+            if row["id"] not in self.id_year_value_map:
+                self.id_year_value_map[row["id"]]=dict()
+
+            self.id_year_value_map[row["id"]][row["year"]]=int(row["value"])
+
 class ParseRule(object):
 
-    def __init__(self, file_name, fips_prefix, region_type, type_prefix, id_prefix, fuzzy_resolve=False):
+    def __init__(self, file_name, fips_prefix, region_type, type_prefix, id_prefix, fuzzy_resolve=False, normalize_per_student=False):
         self.file_name=file_name
         self.fips_prefix=fips_prefix
         self.region_type=region_type
         self.type_prefix=type_prefix
         self.id_prefix=id_prefix
         self.fuzzy_resolve=fuzzy_resolve
+        self.normalize_per_student=normalize_per_student
 
 class ELSITransformer(object):
 
@@ -72,6 +84,7 @@ class ELSITransformer(object):
         print "done"
 
     def _transform_region(self, parse_rule, writer):
+        enrollments=Enrollments()
         file_path=self.data_path + "/"+parse_rule.file_name
         print "parsing " + file_path
 
@@ -124,6 +137,15 @@ class ELSITransformer(object):
             if (id!=None):
                 for yv in sorted(year_value, key=lambda tup: tup[0]):
                     writer.writerow({'id': id, 'name': name, 'type': type, 'variable': self.variable, 'year': yv[0], 'value':yv[1]})
+                    if(parse_rule.normalize_per_student):
+                        print yv[0]
+                        print yv[1]
+                        print enrollments.id_year_value_map[id][yv[0]]
+                        normalized_value=int(float(yv[1])/enrollments.id_year_value_map[id][yv[0]])
+                        print str(normalized_value)
+                        print "\n"
+                        writer.writerow({'id': id, 'name': name, 'type': type, 'variable': self.variable+"-per-student", 'year': yv[0], 'value':normalized_value})
+
 
             print "completed row %d\n" % i
 
@@ -136,7 +158,14 @@ def parse_elsi_student_teacher_ratios(in_dir):
 
 def parse_elsi_expenditures(in_dir):
     transformer = ELSITransformer("expenditures", "administration-salaries", in_dir)
-    transformer.parse_rules.append(ParseRule("administration-salaries-expenditures-states.csv", "ANSI", "State", "School Administration - Salaries (E215) [State Finance]", "0400000US"))
+    print "shit"
+    transformer.parse_rules.append(ParseRule("administration-salaries-expenditures-states.csv", "ANSI", "State", "School Administration - Salaries (E215) [State Finance]", "0400000US", normalize_per_student=True))
+    print "shit"
+    transformer.transform()
+
+def parse_elsi_enrollments(in_dir):
+    transformer = ELSITransformer("enrollments", "total-student-enrollments", in_dir)
+    transformer.parse_rules.append(ParseRule("total-student-enrollments-states.csv", "ANSI", "State", "Total Students [State] ", "0400000US"))
     transformer.transform()
 
 parser = argparse.ArgumentParser()
@@ -156,6 +185,8 @@ elif(args.p):
         parse_elsi_student_teacher_ratios("data/"+args.p)
     elif(args.p=="elsi/expenditures"):
         parse_elsi_expenditures("data/"+args.p)
+    elif(args.p=="elsi/enrollments"):
+        parse_elsi_enrollments("data/"+args.p)
 
         """
         Add other data sources here. Stick to the source/variable naming convention.
