@@ -1,0 +1,22 @@
+# Data originates at http://nces.ed.gov/ccd/elsi/tableGenerator.aspx and is provided by the National Center for Education Statistics
+#
+
+Note: no expenditures data is available at the CBSA or county level. State level data is available.
+
+1. Downloading statistics data
+
+Download 3 files separately for State and Variable. Choose the Select a Table Row in the tableGenerator.
+
+2. For each region type, select the past X years of data such that data exists for every year for all region types (12 as of March 2016). Choose the Select Years.
+
+3. For each region type, select the FIPS code so that the USCensusID can be generated.
+
+4. + Instruction Expenditures - Salaries across all years
+
+5. open and delete non header lines
+
+6. run python script
+
+python pag.py -h
+
+7+ Proceed to upload dataset into ODN per this doc: https://docs.google.com/document/d/1WUv2fIyj3G-7L5aCPrCTzsPXBJ44_7z6pvj9ALlQWGc
