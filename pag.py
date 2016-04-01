@@ -55,7 +55,8 @@ class Enrollments(object):
 
 class ParseRule(object):
 
-    def __init__(self, file_name, fips_prefix, region_type, type_prefix, id_prefix, fuzzy_resolve=False, normalize_per_student=False):
+    def __init__(self, variable_name, file_name, fips_prefix, region_type, type_prefix, id_prefix, fuzzy_resolve=False, normalize_per_student=False):
+        self.variable_name=variable_name
         self.file_name=file_name
         self.fips_prefix=fips_prefix
         self.region_type=region_type
@@ -68,9 +69,8 @@ class ELSITransformer(object):
 
     fieldnames=['id', 'name', 'type', 'variable', 'year', 'value']
 
-    def __init__(self, subcategory, variable, data_path):
+    def __init__(self, subcategory, data_path):
         self.subcategory=subcategory
-        self.variable = variable
         self.data_path = data_path
         self.parse_rules=[]
 
@@ -136,24 +136,26 @@ class ELSITransformer(object):
 
             if (id!=None):
                 for yv in sorted(year_value, key=lambda tup: tup[0]):
-                    writer.writerow({'id': id, 'name': name, 'type': type, 'variable': self.variable, 'year': yv[0], 'value':yv[1]})
+                    writer.writerow({'id': id, 'name': name, 'type': type, 'variable': parse_rule.variable_name, 'year': yv[0], 'value':yv[1]})
                     if(parse_rule.normalize_per_student):
                         normalized_value=int(float(yv[1])/enrollments.id_year_value_map[id][yv[0]])
-                        writer.writerow({'id': id, 'name': name, 'type': type, 'variable': self.variable+"-per-student", 'year': yv[0], 'value':normalized_value})
+                        writer.writerow({'id': id, 'name': name, 'type': type, 'variable': parse_rule.variable_name+"-per-student", 'year': yv[0], 'value':normalized_value})
 
 
             print "completed row %d\n" % i
 
 def parse_elsi_student_teacher_ratios(in_dir):
-    transformer = ELSITransformer("classroom_statistics", "student-teacher-ratio", in_dir)
-    transformer.parse_rules.append(ParseRule("student-teacher-ratios-counties.csv", "County Number", "County", "Pupil/Teacher Ratio [Public School] ", "0500000US"))
-    transformer.parse_rules.append(ParseRule("student-teacher-ratios-states.csv", "ANSI", "State", "Pupil/Teacher Ratio [State] ", "0400000US"))
-    transformer.parse_rules.append(ParseRule("student-teacher-ratios-metros.csv", "ANSI", "CBSA", "Pupil/Teacher Ratio [Public School] ", "310M200US", fuzzy_resolve=True))
+    transformer = ELSITransformer("classroom_statistics", in_dir)
+    transformer.parse_rules.append(ParseRule("student-teacher-ratio", "student-teacher-ratios-counties.csv", "County Number", "County", "Pupil/Teacher Ratio [Public School] ", "0500000US"))
+    transformer.parse_rules.append(ParseRule("student-teacher-ratio", "student-teacher-ratios-states.csv", "ANSI", "State", "Pupil/Teacher Ratio [State] ", "0400000US"))
+    transformer.parse_rules.append(ParseRule("student-teacher-ratio", "student-teacher-ratios-metros.csv", "ANSI", "CBSA", "Pupil/Teacher Ratio [Public School] ", "310M200US", fuzzy_resolve=True))
     transformer.transform()
 
 def parse_elsi_expenditures(in_dir):
-    transformer = ELSITransformer("expenditures", "administration-salaries", in_dir)
-    transformer.parse_rules.append(ParseRule("administration-salaries-expenditures-states.csv", "ANSI", "State", "School Administration - Salaries (E215) [State Finance]", "0400000US", normalize_per_student=True))
+    transformer = ELSITransformer("expenditures", in_dir)
+    transformer.parse_rules.append(ParseRule("administration-salaries", "administration-salaries-expenditures-states.csv", "ANSI", "State", "School Administration - Salaries (E215) [State Finance]", "0400000US", normalize_per_student=True))
+    transformer.parse_rules.append(ParseRule("capital-expenditures", "capital-expenditures-states.csv", "ANSI", "State", "Total Capital Outlay Expenditures (TE10+E61) [State Finance] ", "0400000US", normalize_per_student=True))
+    transformer.parse_rules.append(ParseRule("instruction-salaries", "instruction-salaries-expenditures-states.csv", "ANSI", "State", "Instruction Expenditures - Salaries (E11) [State Finance] ", "0400000US", normalize_per_student=True))
     transformer.transform()
 
 def parse_elsi_enrollments(in_dir):
