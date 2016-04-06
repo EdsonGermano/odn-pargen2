@@ -163,6 +163,70 @@ def parse_elsi_enrollments(in_dir):
     transformer.parse_rules.append(ParseRule("total-student-enrollments-states.csv", "ANSI", "State", "Total Students [State] ", "0400000US"))
     transformer.transform()
 
+def parse_elsi_schools(file_path, file_name, subcategory):
+    fieldnames=['address', 'city', 'classification', 'description', 'location', 'name', 'phone_number', 'postal_code', 'state']
+    file_path=file_path + "/" + file_name
+    print "parsing " + file_path
+    input_file = csv.DictReader(open(file_path))
+    with open(subcategory+'-merged.csv', 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+
+        i=0
+        for row in input_file:
+            i+=1
+            address=None
+            city=None
+            classification=None
+            description=None
+            location=None
+            school_name=None
+            phone_number=None
+            postal_code=None
+            state=None
+            for k in row.keys():
+                if k.startswith("Location Address"):
+                    address=row[k]
+                elif k.startswith("State Name"):
+                    state=row[k]
+                elif k.startswith("Location City [Public School] 2013-14"):
+                    city=row[k]
+                elif k.startswith("School Level Code"):
+                    if "Primary" in row[k]:
+                        classification="Elementary Schools"
+                    elif "High" in row[k]:
+                        classification="High Schools"
+                    elif "Middle" in row[k]:
+                        classification="Middle Schools"
+                    else:
+                        print "ignoring other school classification..."
+                elif k.startswith("School Type"):
+                    if "Alternative" in row[k]:
+                        classification="Alternative Schools"
+                    if "Special education" in row[k]:
+                        classification="Special Education Schools"
+                elif k.startswith("Latitude"):
+                    lat=float(row[k])
+                elif k.startswith("Longitude"):
+                    long=float(row[k])
+                elif k.startswith("Phone Number"):
+                    phone_number=row[k]
+                elif k.startswith("Location ZIP"):
+                    postal_code=row[k]
+                elif "School Name" in k:
+                    school_name=row[k]
+
+            try:
+                writer.writerow({'address': address, 'city': city, 'classification': classification, 'description': description,
+                     'location': (lat,long), 'name':school_name, 'phone_number':phone_number, 'postal_code':postal_code,
+                     'state': state})
+
+                print "completed row %d\n" % i
+            except:
+                print "failed row %d\n" % i
+
+        print "done"
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-a', help="shows available raw datasets for transformation", action='store_true')
 parser.add_argument('-p', help="parses specified data dir and generates latest transform, e.g. elsi/student-teacher-ratios", default=None)
@@ -182,6 +246,8 @@ elif(args.p):
         parse_elsi_expenditures("data/"+args.p)
     elif(args.p=="elsi/enrollments"):
         parse_elsi_enrollments("data/"+args.p)
+    elif(args.p=="elsi/schools"):
+        parse_elsi_schools("data/"+args.p, "public-schools-usa.csv", "schools")
 
         """
         Add other data sources here. Stick to the source/variable naming convention.
