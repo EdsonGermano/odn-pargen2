@@ -164,7 +164,7 @@ def parse_elsi_enrollments(in_dir):
     transformer.transform()
 
 def parse_elsi_schools(file_path, file_name, subcategory):
-    fieldnames=['address', 'city', 'classification', 'description', 'location', 'name', 'phone_number', 'postal_code', 'state']
+    fieldnames=['address', 'city', 'classification', 'description', 'latitude', 'longitude', 'name', 'phone_number', 'postal_code', 'state']
     file_path=file_path + "/" + file_name
     print "parsing " + file_path
     input_file = csv.DictReader(open(file_path))
@@ -218,7 +218,7 @@ def parse_elsi_schools(file_path, file_name, subcategory):
 
             try:
                 writer.writerow({'address': address, 'city': city, 'classification': classification, 'description': description,
-                     'location': (lat,long), 'name':school_name, 'phone_number':phone_number, 'postal_code':postal_code,
+                     'latitude': lat, 'longitude':long, 'name':school_name, 'phone_number':phone_number, 'postal_code':postal_code,
                      'state': state})
 
                 print "completed row %d\n" % i
